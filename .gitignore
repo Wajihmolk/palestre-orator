@@ -1,0 +1,8 @@
+# Textes et corrigés des cours : propriété de leurs auteurs, jamais dans le dépôt public.
+cours-prive/
+*.pack.json
+pack.json
+.DS_Store
+# Version 1 : contient du contenu de cours ; notes de travail locales.
+v1/
+CLAUDE.md

@@ -1,0 +1,47 @@
+{
+  "format": "palestre-pack/1",
+  "titre": "Pack d'exemple (schéma)",
+  "date": "2026-11-13",
+  "source": "Fichier de démonstration : il montre la forme attendue. Le vrai pack, construit à partir des cours, reste privé (cours-prive/pack.json, hors dépôt).",
+  "fiches": [
+    { "id": "ex-fiche", "m": 3, "q": "Exemple de fiche : quelles sont les six parties de la narration ?", "p": ["La personne", "L'action", "Le lieu", "Le temps", "La manière", "La cause"], "src": "repère méthodologique" }
+  ],
+  "qcm": [
+    { "id": "ex-q1", "m": 1, "cours": "c1", "q": "Exemple de question : combien de parties compte la narration selon la méthode d'Orator 3 ?", "choix": ["Quatre", "Six", "Huit"], "a": 1, "why": "Personne, action, lieu, temps, manière, cause.", "src": "repère méthodologique" },
+    { "id": "ex-q2", "m": 1, "cours": "c2", "q": "Exemple à réponses multiples : lesquels sont des critères de confirmation ?", "choix": ["Le vraisemblable", "L'impossible", "L'utile"], "a": [0, 2], "why": "L'impossible est un critère de réfutation." }
+  ],
+  "textes": [
+    { "id": "ex-conte", "titre": "Conte d'exemple", "auteur": "Domaine public", "texte": ["Il était une fois un exemple, qui tenait en trois paragraphes.", "Chaque paragraphe sert à vérifier l'affichage du texte dans l'épreuve à trois arguments.", "Et le conte s'arrête là."], "faits": ["Un exemple tient en trois paragraphes.", "Le conte s'arrête sans conclusion."] }
+  ],
+  "devoirs": {
+    "o3": { "texte": "ex-conte", "corrige": { "mode": "r", "tableau": [{ "partie": "action", "critere": "invraisemblable" }], "intro": "Introduction d'exemple.", "args": ["Argument d'exemple."], "conclusion": "Conclusion d'exemple." }, "conseils": ["Conseil d'exemple."] },
+    "o4": { "q1": "Corrigé d'exemple pour la question 1.", "q2": [{ "t": "Énoncé d'exemple sans personnage.", "r": 1, "why": "Aucun personnage : c'est une sentence." }, { "t": "Un personnage d'exemple déclara : « exemple ».", "r": -1, "why": "Une seule phrase, un personnage, une parole." }], "q3": "Corrigé d'exemple pour la question 3." }
+  },
+  "chries": [
+    { "id": "ex-antique", "antique": true, "A": "Un sage d'exemple, interrogé sur la justice,", "B": "« ne pas envier les biens des autres »", "full": "Un sage d'exemple, interrogé sur la justice, déclara : « ne pas envier les biens des autres »." },
+    { "id": "ex-debat", "antique": false, "A": "Lors d'un débat d'exemple, un candidat parle du cœur ;", "B": "« vous n'avez pas le monopole du cœur »", "full": "À un candidat qui parlait du cœur, son adversaire répondit : « vous n'avez pas le monopole du cœur ».", "corrige": [{ "cat": 2, "t": "Exemple de titre" }] }
+  ],
+  "enonces": [
+    { "t": "Un sage d'exemple, interrogé sur la justice, déclara : « ne pas envier les biens des autres ».", "r": -1, "why": "Une seule phrase, un personnage précis, une parole insigne, aucun commentaire." },
+    { "t": "Il ne faut pas envier les biens des autres.", "r": 1, "why": "Aucun personnage : c'est une maxime, pas une chrie." }
+  ],
+  "breves": [
+    { "id": "ex-ma-1", "src": "marianne", "lot": "exemple", "num": 1, "date": "exemple", "titre": "TITRE PARU D'EXEMPLE", "texte": "Texte d'exemple d'une brève satirique, qui rapporte un propos puis le commente d'une pointe.", "corrige": [{ "cat": 1, "t": "Mot d'exemple" }, { "cat": 4, "t": "Titre d'œuvre d'exemple", "note": "variation sur un titre connu" }] },
+    { "id": "ex-ca-1", "src": "canard", "lot": "exemple", "num": 1, "date": "exemple", "texte": "Texte d'exemple d'une Minimare sans titre, qui cite un propos puis le retourne.", "corrige": [{ "cat": 2, "t": "Expression d'exemple" }] }
+  ],
+  "titres": [["Exemple de titre", 5, "sujet d'exemple"]],
+  "fautes": [{ "t": "Je pense que cet exemple est fautif.", "a": 1 }, { "t": "Quel exemple accepterait pareille faute ?", "a": 0 }],
+  "ethos": [
+    { "fr": "La tranquillité", "gr": "exemple", "def": "Exemple", "val": true, "opp": 4 }, { "fr": "La simplicité", "gr": "exemple", "def": "Exemple", "val": true, "opp": 5 },
+    { "fr": "La justice", "gr": "exemple", "def": "Exemple", "val": true, "opp": 6 }, { "fr": "Les sentiments démocratiques", "gr": "exemple", "def": "Exemple", "val": true, "opp": 7 },
+    { "fr": "L'ingérence", "gr": "exemple", "def": "Exemple", "val": false, "opp": 0 }, { "fr": "La complexité", "gr": "exemple", "def": "Exemple", "val": false, "opp": 1 },
+    { "fr": "L'excès", "gr": "exemple", "def": "Exemple", "val": false, "opp": 2 }, { "fr": "Les sentiments oligarchiques", "gr": "exemple", "def": "Exemple", "val": false, "opp": 3 }
+  ],
+  "captatio": [{ "nom": "notre personne", "aide": "Exemple." }, { "nom": "nos adversaires", "aide": "Exemple." }, { "nom": "les juges", "aide": "Exemple." }, { "nom": "la cause", "aide": "Exemple." }],
+  "affaires": [{ "id": "ex-aff", "nom": "Affaire d'exemple", "resume": "Résumé d'exemple.", "roles": ["Tu accuses", "Tu défends"] }],
+  "briques": [{ "id": "captatio", "nom": "Exorde", "check": ["Un lieu de l'exorde est mobilisé"] }, { "id": "plusmoins", "nom": "Lieu du plus et du moins", "consigne": "Construis un argument « qui peut le plus peut le moins ».", "check": ["Le schéma est reconnaissable"] }, { "id": "preuves", "nom": "Preuves", "consigne": "Signale [eikos], [sèmeion], [exemple].", "check": ["Un eikos", "Un sèmeion", "Un exemple"] }],
+  "termes": [["exemplum", "l'exemple, en latin"], ["paradeigma", "l'exemple, en grec"]],
+  "qui": [["Il a écrit cet exemple.", "L'auteur d'exemple"], ["Il l'a lu.", "Le lecteur d'exemple"]],
+  "genres": [["Le tribunal", "Judiciaire"], ["L'assemblée", "Délibératif"], ["La fête", "Épidictique"]],
+  "lieux": [["Qui peut le plus peut le moins", "Lieu général ou commun"], ["Les lieux de l'exorde", "Lieu propre à une partie du discours"], ["Rubrique militaire", "Lieu spécifique"]]
+}

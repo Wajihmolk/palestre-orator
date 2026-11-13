@@ -1,0 +1,14 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Prévisualisation</title>
+<style>body{margin:0;background:#888;display:flex;justify-content:center;align-items:flex-start}iframe{border:0;background:#fff}</style></head>
+<body><script>
+/* Outil de développement, jamais publié avec le pack : installe cours-prive/pack.json (servi localement) dans le stockage,
+   applique des réglages, puis affiche l'appli dans un cadre de la taille demandée.
+   Paramètres : go=<hash de l'appli> (ex. apprendre?cap=chateau), w=390, h=1400, theme=light|dark, reset=1 */
+(async () => {
+  const q = new URLSearchParams(location.search);
+  try { const r = await fetch("../cours-prive/pack.json"); if (r.ok) localStorage.setItem("palestre.pack", JSON.stringify(await r.json())); } catch (e) { /* pas de pack */ }
+  if (q.get("reset")) localStorage.removeItem("palestre.orator.v2");
+  if (q.get("theme")) { const s = JSON.parse(localStorage.getItem("palestre.orator.v2") || "null") || { v: 2, cards: {}, prods: [], settings: {} }; s.settings = Object.assign({ len: 10, dates: {}, son: true, anim: "auto", theme: "auto", qcmN: 20, o3cadre: true }, s.settings, { theme: q.get("theme") }); localStorage.setItem("palestre.orator.v2", JSON.stringify(s)); }
+  const f = document.createElement("iframe"); f.width = q.get("w") || 390; f.height = q.get("h") || 1400; f.src = "../index.html#" + (q.get("go") || "aujourdhui"); document.body.appendChild(f);
+})();
+</script></body></html>
