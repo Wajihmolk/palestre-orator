@@ -8,6 +8,17 @@ test("sous-vues Apprendre sans pack", () => ["capsules", "fiches", "qcm"].forEac
 test("sous-vues Carnet sans pack", () => ["textes", "missions", "pack", "sauvegarde", "reglages"].forEach(k => { A.UI.carnet = k; sane(A.VIEWS.carnet(), "carnet/" + k); }));
 test("les ateliers qui manquent de contenu renvoient null sans planter", () => { eq(A.mkArg(), null); eq(A.mkTrois(), null); eq(A.mkBreve(), null); eq(A.mkRecon(), null); eq(A.mkBrique(), null); eq(A.mkTitre(), null); });
 test("startFlow sans étape ne lance rien", () => { A.startFlow([null, undefined]); eq(A.R, null); });
+test("Orator 1 : examen blanc accessible sans pack et couvrant les six cours", () => {
+  ok(A.EXAMS[1].ok());
+  A.EXAMS[1].start();
+  const R = A.R;
+  const questions = R.steps[0].items;
+  eq(questions.length, 24);
+  eq(new Set(questions.map(q => q.id)).size, 24);
+  for (let c = 1; c <= 6; c++) eq(questions.filter(q => q.cours === "c" + c).length, 4);
+  ok(questions.every(q => q.why && q.choix.length === 4 && Number.isInteger(q.a)));
+  A.ACT.close();
+});
 
 section("Capsules");
 test("chaque capsule a un SVG, des scènes et des légendes", () => CAPSULES.forEach(c => { ok(c.id && c.titre && c.sous && c.duree, c.id); ok(c.svg.startsWith("<svg") && c.svg.endsWith("</svg>"), c.id); ok(c.scenes.length >= 4, c.id); c.scenes.forEach(s => ok(s.t && s.t.length > 20, c.id)); }));
@@ -63,7 +74,18 @@ if (PACK) {
   });
   if (A.P.qcm.length) {
     test("QCM d'examen : navigation, correction", () => { const items = Core.plan.pickQcm(A.P.qcm, {}, Math.min(5, A.P.qcm.length)); const R = run([{ type: "qcm", items, pts: 20 }], { exam: 1, minutes: 60 }); viewNow("qcm/0"); A.ACT["qcm-pick"]({ dataset: { i: 0 } }); eq(R.st.ans[0] === 0 || Array.isArray(R.st.ans[0]), true); A.ACT["qcm-next"](); eq(R.st.i, Math.min(1, items.length - 1)); A.ACT["qcm-prev"](); eq(R.st.i, 0); R.st.phase = 1; viewNow("qcm/correction"); A.ACT["qcm-ok"](); ok(A.R === null || A.R.done, "séance terminée"); ok(A.S.exams.length >= 1 && A.S.exams[0].mod === 1, "examen enregistré"); if (A.R) A.ACT.close(); });
-    test("QCM d'entraînement : retour immédiat", () => { const items = Core.plan.pickQcm(A.P.qcm, {}, 3).filter(q => !Array.isArray(q.a)); if (!items.length) return; const R = run([{ type: "qcm", items, train: true }]); A.ACT["qcm-pick"]({ dataset: { i: items[0].a } }); ok(R.st.fb && R.st.fb.ok, "bonne réponse reconnue"); viewNow("qcm train feedback"); A.ACT.close(); });
+    test("QCM d'entraînement : retour immédiat après mélange des choix", () => { const items = Core.plan.pickQcm(A.P.qcm, {}, 3).filter(q => !Array.isArray(q.a)); if (!items.length) return; const R = run([{ type: "qcm", items, train: true }]); A.ACT["qcm-pick"]({ dataset: { i: R.steps[0].items[0].a } }); ok(R.st.fb && R.st.fb.ok, "bonne réponse reconnue"); viewNow("qcm train feedback"); A.ACT.close(); });
+    test("Orator 1 : le temps écoulé ouvre la correction", () => {
+      const R = run([{ type: "qcm", items: A.P.qcm.slice(0, 2) }], { exam: 1, minutes: 60 });
+      const q = R.steps[0].items[0];
+      for (const i of [q.a].flat()) A.ACT["qcm-pick"]({ dataset: { i } });
+      R.deadline = Date.now() - 1;
+      A.ACT["qcm-prev"]();
+      eq(R.st.phase, 1); eq(R.deadline, null);
+      A.ACT["qcm-ok"]();
+      eq(R.total, R.steps[0].items.length === 2 ? 10 : 20);
+      A.ACT.close();
+    });
     test("chaque question du pack s'affiche dans le QCM", () => { const R = run([{ type: "qcm", items: A.P.qcm.slice(), pts: 20 }]); A.P.qcm.forEach((q, i) => { R.st.i = i; viewNow("question " + q.id); }); R.st.phase = 1; viewNow("correction complète"); A.ACT.close(); });
   }
   test("mission et notation libre", () => { const R = run([{ type: "mission" }, { type: "rate", label: "Langue", pts: 2, title: "t", hint: "h" }]); viewNow("mission"); A.ACT["mission-ok"](); ok(A.S.mission && A.S.mission.day, "mission prise"); viewNow("rate"); A.ACT.close(); });

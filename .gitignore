@@ -1,8 +1,13 @@
 # Textes et corrigés des cours : propriété de leurs auteurs, jamais dans le dépôt public.
-cours-prive/
+/cours-prive/
+/pour-chatgpt/
 *.pack.json
 pack.json
 .DS_Store
 # Version 1 : contient du contenu de cours ; notes de travail locales.
-v1/
-CLAUDE.md
+/v1/
+/CLAUDE.md
+/AGENTS.md
+
+/pour-chatgpt/
+/AGENTS.md

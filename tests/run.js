@@ -3,6 +3,7 @@ load("tests/harness.js");
 load("core.js");
 load("capsules.js");
 load("tests/dom-stub.js");
+load("o1-exam.js");
 load("app.js");
 function readJSON(path) { try { const t = readFile(path); return t ? JSON.parse(t) : null; } catch (e) { return null; } }
 const PACK_PRIVE = readJSON("cours-prive/pack.json");

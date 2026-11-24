@@ -269,6 +269,22 @@
     const stats = { fiches: arr(p.fiches).length, qcm: arr(p.qcm).length, breves: arr(p.breves).length, corriges: arr(p.breves).filter(b => arr(b.corrige).length).length, textes: arr(p.textes).length, chries: arr(p.chries).length, enonces: arr(p.enonces).length, titres: arr(p.titres).length };
     return { ok: errors.length === 0, errors, warnings, stats };
   }
+  function normalizeQuestion(question) {
+    const q = { ...question, m: question.m ? +question.m : 1 };
+    if (q.cours !== "c6" || !Array.isArray(q.choix)) return q;
+    if (q.id === "c6-08" && /responsabilité de Néron/i.test(q.q)) {
+      q.q = "Quelle distinction faire à propos de l’incendie de Rome en 64 ?";
+      q.choix = ["Le portrait du tyran suffit à établir qui a déclenché l’incendie.", "La mise en cause de Néron relève du récit et ne démontre pas sa responsabilité.", "Le récit de l’incendie prouve que Néron est resté à Rome.", "Les deux historiens décrivent l’incendie en témoins directs."];
+      q.a = 1;
+      q.why = "Le cours étudie la construction du portrait du tyran. Il présente une interprétation de l’incendie, dont la cause reste incertaine.";
+    }
+    if (q.id === "c6-18" && /panégyrique de Pline/i.test(q.q)) {
+      q.choix = ["Lors de l’éloge funèbre de Trajan", "Lors de l’entrée en charge de Pline comme consul", "Lors d’un triomphe militaire de Trajan", "Lors de l’inauguration du forum de Trajan"];
+      q.a = 1;
+      q.why = "Le discours de remerciement date de l’an 100 et a été remanié pour la publication. Les références divergent sur le jour donné dans le support.";
+    }
+    return q;
+  }
   function normalizePack(p) {
     p = p || {};
     const D = Core.DEF;
@@ -280,14 +296,13 @@
       categories: arr(p.categories).length === 6 ? p.categories : D.CATEGORIES,
       regles: arr(p.regles).length === 4 ? p.regles : D.REGLES_CHRIE,
       missions: arr(p.missions).length ? p.missions : D.MISSIONS,
-      fiches: arr(p.fiches), qcm: arr(p.qcm), breves: arr(p.breves), textes: arr(p.textes), modeles: arr(p.modeles),
+      fiches: arr(p.fiches), qcm: arr(p.qcm).map(normalizeQuestion), breves: arr(p.breves), textes: arr(p.textes), modeles: arr(p.modeles),
       chries: arr(p.chries), enonces: arr(p.enonces), titres: arr(p.titres), fautes: arr(p.fautes),
       ethos: arr(p.ethos), captatio: arr(p.captatio), affaires: arr(p.affaires), briques: arr(p.briques),
       termes: arr(p.termes), qui: arr(p.qui), genres: arr(p.genres), lieux: arr(p.lieux),
       devoirs: p.devoirs || {}, notes: p.notes || {}
     };
     out.fiches.forEach(f => { f.m = +f.m; });
-    out.qcm.forEach(q => { q.m = q.m ? +q.m : 1; });
     out.empty = !out.fiches.length && !out.qcm.length && !out.breves.length && !out.textes.length;
     return out;
   }
@@ -363,13 +378,26 @@
     const score = q => { const s = states[q.id]; return s ? (s.ok || 0) / Math.max(1, s.n || 0) + (s.n || 0) * 0.01 : -1; };
     return shuffle(pool).sort((a, b) => score(a) - score(b)).slice(0, n);
   }
+  // Les énoncés qui dépendent de la position de leurs choix gardent leur ordre.
+  function shuffleQcm(question) {
+    const letterPair = /\b[A-H] (?:et|ou) [A-H]\b/;
+    const position = /\b(?:(?:choix|option|proposition|réponse)s?\s+(?:[A-H0-9]\b|précédente?s?|suivante?s?|ci-dessus|ci-dessous)|les (?:deux|trois) (?:premi[èe]res|derni[èe]res) (?:propositions|réponses|options))/i;
+    const texts = [question.q, question.why, ...question.choix].filter(Boolean);
+    if (question.fixedOrder || texts.some(text => letterPair.test(text) || position.test(text))) return question;
+    const order = shuffle(question.choix.map((_, index) => index));
+    return {
+      ...question,
+      choix: order.map(index => question.choix[index]),
+      a: Array.isArray(question.a) ? question.a.map(index => order.indexOf(index)) : order.indexOf(question.a)
+    };
+  }
   // Choisit des brèves à titrer : non vues d'abord, puis les plus anciennes.
   function pickBreves(breves, states, n, src, lot) {
     const pool = breves.filter(b => (!src || b.src === src) && (!lot || b.lot === lot));
     const key = b => { const s = states[b.id]; return s ? (s.last || 0) : -1; };
     return shuffle(pool).sort((a, b) => key(a) - key(b)).slice(0, n);
   }
-  Core.plan = { ritualPlan, variety, pickQcm, pickBreves };
+  Core.plan = { ritualPlan, variety, pickQcm, shuffleQcm, pickBreves };
 
   root.Core = Core;
 })(typeof globalThis !== "undefined" ? globalThis : this);

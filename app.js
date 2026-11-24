@@ -96,7 +96,13 @@
       return rnd(2) ? mk("<i>" + esc(t[0]) + "</i>", "Que désigne ce terme ?", t[1], P.termes.map(x => x[1])) : mk(esc(t[1]), "Quel est le terme ?", t[0], P.termes.map(x => x[0]));
     } },
     qui: { nom: "Qui ?", mod: 1, ok: () => has("qui"), gen() { const x = pick(P.qui); return mk(esc(x[0]), "Qui ?", x[1], P.qui.map(y => y[1])); } },
-    qcm: { nom: "QCM éclair", mod: 1, ok: () => has("qcm"), gen() { const q = pick(P.qcm.filter(x => !Array.isArray(x.a))); if (!q) return { q: "Aucune question à réponse unique.", choices: ["Continuer"], a: 0 }; return { q: esc(q.q), sub: q.cours ? "Cours " + q.cours.replace(/^c/, "") : "", choices: q.choix, a: q.a, why: q.why, id: q.id }; } }
+    qcm: { nom: "QCM éclair", mod: 1, ok: () => has("qcm"), gen(orders = new Map()) {
+      const question = pick(P.qcm.filter(x => !Array.isArray(x.a)));
+      if (!question) return { q: "Aucune question à réponse unique.", choices: ["Continuer"], a: 0 };
+      if (!orders.has(question.id)) orders.set(question.id, Core.plan.shuffleQcm(question));
+      const q = orders.get(question.id);
+      return { q: esc(q.q), sub: q.cours ? "Cours " + q.cours.replace(/^c/, "") : "", choices: q.choix, a: q.a, why: q.why, id: q.id };
+    } }
   };
   const drillList = () => Object.keys(DRILLS).filter(k => DRILLS[k].ok());
 
@@ -276,7 +282,7 @@
   const letters = "ABCDEFGH";
 
   function startFlow(steps, opt) {
-    steps = steps.filter(Boolean);
+    steps = steps.filter(Boolean).map(s => s.type === "qcm" ? { ...s, items: s.items.map(Core.plan.shuffleQcm) } : s);
     if (!steps.length) return toast("Rien à lancer : importe d'abord ton pack de cours.");
     R = { steps, i: 0, res: [], opt: opt || {}, st: {} };
     if (R.opt.minutes) R.deadline = Date.now() + R.opt.minutes * 60000;
@@ -368,12 +374,12 @@
       view(s, st) {
         const c = cardOf(s.id); if (!c) return "<p>Fiche introuvable.</p><button class=\"btn ghost\" data-act=\"skip\">Passer</button>";
         const cs = cardState(c.id);
-        if (st.phase === 0) return '<p class="eyebrow">Rappel · ' + MODULES()[c.m].nom + " · " + LEVELS[level(cs.b)] + '</p><h2 class="q">' + esc(c.q) + '</h2><textarea id="c-text" rows="5" placeholder="Écris ta réponse de mémoire, ou dis-la à voix haute.">' + esc(st.text || "") + '</textarea><div class="actions"><button class="btn primary" data-act="card-show">Voir les éléments attendus</button></div>';
+        if (st.phase === 0) return '<p class="eyebrow">Rappel · ' + esc(MODULES()[c.m].nom) + " · " + LEVELS[level(cs.b)] + '</p><h2 class="q">' + esc(c.q) + '</h2><textarea id="c-text" rows="5" placeholder="Écris ta réponse de mémoire, ou dis-la à voix haute.">' + esc(st.text || "") + '</textarea><div class="actions"><button class="btn primary" data-act="card-show">Voir les éléments attendus</button></div>';
         return '<p class="eyebrow">Corrige-toi</p><h2 class="q">' + esc(c.q) + "</h2>" + (st.text ? '<blockquote class="mine">' + esc(st.text) + "</blockquote>" : "") + '<p class="hint">Coche chaque élément que tu avais restitué.</p><div class="checks">' + c.p.map((p, i) => chk("cp" + i, p)).join("") + "</div>" + (c.src ? '<p class="hint">Source : ' + esc(c.src) + "</p>" : "") + '<div class="actions"><button class="btn primary" data-act="card-ok">Valider</button></div>';
       }
     },
     sprint: {
-      enter(s, st) { st.limit = 60; st.hard = true; st.ok = 0; st.n = 0; st.q = DRILLS[s.drill].gen(); st.fb = null; },
+      enter(s, st) { st.limit = 60; st.hard = true; st.ok = 0; st.n = 0; if (s.drill === "qcm") st.orders = new Map(); st.q = DRILLS[s.drill].gen(st.orders); st.fb = null; },
       view(s, st) {
         const d = DRILLS[s.drill];
         if (st.phase === 1) return '<p class="eyebrow">Sprint · ' + esc(d.nom) + '</p><div class="score">' + st.ok + "<small> sur " + st.n + "</small></div><p>" + (st.record ? "Nouveau record." : "Ton record : " + ((S.drills[s.drill] || {}).best || 0) + ".") + '</p><div class="actions"><button class="btn primary" data-act="sprint-next">Continuer</button></div>';
@@ -481,12 +487,23 @@
     }
   };
 
+  function finishExpiredQcm(now) {
+    if (R?.opt.exam !== 1 || !R.deadline || now < R.deadline) return false;
+    R.deadline = null;
+    R.st.phase = 1;
+    R.st.fb = null;
+    closeSheet();
+    drawRunner();
+    toast("Temps écoulé. Tu peux consulter ta correction.");
+    return true;
+  }
   function tick() {
     const el = $("#clock");
     if (!R || !el) return;
     const now = Date.now();
     el.classList.remove("over", "warnt");
     if (R.done) { el.textContent = ""; return; }
+    if (finishExpiredQcm(now)) return;
     if (R.deadline) { const r = R.deadline - now; el.textContent = (r < 0 ? "+" : "") + mmss(r); el.classList.toggle("over", r < 0); el.classList.toggle("warnt", r >= 0 && r < 5 * 60000); if (r < 0 && !R.warned) { R.warned = true; beep("end"); toast("Temps écoulé : termine et valide."); } return; }
     const st = R.st;
     if (!st.limit) { el.textContent = ""; return; }
@@ -495,7 +512,7 @@
     else { el.textContent = (r < 0 ? "+" : "") + mmss(r); el.classList.toggle("over", r < 0); }
   }
   setInterval(tick, 250);
-  function newQ() { const d = DRILLS[R.steps[R.i].drill]; let q, k = 0; do { q = d.gen(); } while (q.q === R.st.q.q && ++k < 6); R.st.q = q; }
+  function newQ() { const d = DRILLS[R.steps[R.i].drill]; let q, k = 0; do { q = d.gen(R.st.orders); } while (q.q === R.st.q.q && ++k < 6); R.st.q = q; }
   function sprintEnd() {
     const st = R.st, id = R.steps[R.i].drill, d = S.drills[id] || (S.drills[id] = { best: 0, n: 0 });
     st.phase = 1; st.limit = null; st.record = st.ok > d.best && st.ok > 0;
@@ -527,10 +544,17 @@
     if (!steps.some(s => s.type !== "mission")) return toast("Importe ton pack de cours pour lancer le rituel.");
     startFlow(steps, { ritual: true });
   }
+  const examPack = () => P.qcm.filter(q => q.m === 1);
+  const examOriginal = window.O1_PRACTICE_EXAM || [];
   const EXAMS = {
-    1: { titre: "Orator 1", ok: () => has("qcm"), format: () => ["QCM d'une heure, questions uniquement sur le cours", S.settings.qcmN >= 999 ? "Toutes les questions du pack" : S.settings.qcmN + " questions tirées au sort, les moins réussies d'abord", "Correction et explications à la fin"], note: "Note sur 20 proportionnelle au nombre de bonnes réponses : le barème officiel du QCM n'est pas dans les documents du cours.", start() {
-      const n = S.settings.qcmN >= 999 ? P.qcm.length : Math.min(S.settings.qcmN, P.qcm.length);
-      startFlow([{ type: "qcm", items: Core.plan.pickQcm(P.qcm, S.qcm, n), pts: 20 }], { exam: 1, minutes: 60, title: "Examen blanc · Orator 1", note: this.note });
+    1: { titre: "Orator 1", ok: () => Boolean(examPack().length || examOriginal.length), format: () => {
+      const n = examPack().length;
+      const questions = n ? Math.min(S.settings.qcmN, n) + " questions du pack, les moins réussies en priorité" : examOriginal.length + " questions d’entraînement originales sur les six cours";
+      return ["Une heure pour répondre", questions, "Correction et explications à la fin"];
+    }, note: "Note d’entraînement sur 20, proportionnelle aux bonnes réponses. Le nombre de questions et le barème officiels restent à confirmer.", start() {
+      const bank = examPack();
+      const items = bank.length ? Core.plan.pickQcm(bank, S.qcm, Math.min(S.settings.qcmN, bank.length)) : shuffle(examOriginal);
+      startFlow([{ type: "qcm", items, pts: 20 }], { exam: 1, minutes: 60, title: "Examen blanc · Orator 1", note: this.note });
     } },
     2: { titre: "Orator 2", ok: () => has("affaires") && has("briques"), format: () => ["Un discours judiciaire complet, brique par brique", "Exorde, narration, èthos, lieux, preuves"], note: Core.DEF.EXAMENS[2].note, start() {
       const a = pick(P.affaires), role = rnd(2), pts = Math.floor(18 / P.briques.length * 4) / 4;
@@ -676,7 +700,9 @@
       st.fb = null;
       if (st.i + 1 < s.items.length) { st.i++; drawRunner(); return; }
       if (!s.train) { const left = st.ans.filter(a => a == null).length; if (left && !st.confirmEnd) { st.confirmEnd = true; return toast(plural(left, "question") + " sans réponse : appuie encore pour terminer."); } }
-      st.phase = 1; drawRunner();
+      st.phase = 1;
+      if (R.opt.exam === 1) R.deadline = null;
+      drawRunner();
     },
     "qcm-ok"() {
       const s = R.steps[R.i], st = R.st, sc = Core.score.qcm(s.items, st.ans);
@@ -807,6 +833,7 @@
         mission = '<section class="card"><p class="eyebrow">Ta mission d\'ici demain</p><blockquote>' + esc(P.missions[S.mission.idx] || "") + "</blockquote></section>";
       }
       const install = isIOS && !standalone() && !S.settings.hideInstall ? '<section class="card soft"><p class="eyebrow">Sur l\'écran d\'accueil</p><p class="hint">Dans Safari : bouton Partager, puis « Sur l\'écran d\'accueil ». L\'appli s\'ouvre alors en plein écran et fonctionne hors ligne.</p><div class="actions"><button class="btn small ghost" data-act="hide-install">Compris</button></div></section>' : "";
+      const orator1 = '<section class="hero"><p class="eyebrow">Orator 1</p><h2>Apprendre à partir de zéro</h2><p class="hint">Six cours pour comprendre les notions, préparer le QCM et t’entraîner à prendre la parole.</p><div class="actions"><a class="btn primary" href="o1.html">Ouvrir le parcours</a><a class="btn ghost" href="o1-revision.html">Réviser</a></div></section>';
       const ritual = '<section class="card ritual"><p class="eyebrow">' + (done ? "Rituel accompli aujourd'hui" : "Rituel du jour") + "</p><h2>Rappeler, réagir, produire, vivre.</h2>" +
         seg("len", S.settings.len, [[5, "5 min"], [10, "10 min"], [15, "15 min"]]) +
         '<p class="hint">' + plural(pl.cards, "rappel") + " · 1 sprint" + (pl.qcm && has("qcm") ? " · 5 questions de QCM" : "") + (pl.ateliers ? " · " + plural(pl.ateliers, "atelier") : "") + (S.settings.len === 15 ? " · 1 capsule" : "") + " · 1 mission" + (due ? " · " + plural(due, "fiche") + " à revoir" : "") + '</p><button class="btn primary" data-act="ritual">' + (done ? "Refaire une séance" : "Commencer") + "</button></section>";
@@ -824,7 +851,7 @@
       const mait = '<section class="card"><p class="eyebrow">Maîtrise des savoirs</p>' + mods + '<p class="legend"><span style="--k:var(--accent)">Réflexe</span><span style="--k:color-mix(in srgb, var(--accent) 55%, transparent)">Ancré</span><span style="--k:var(--gold)">En cours</span></p></section>';
       const nextCap = CAPSULES.find(c => !(S.caps[c.id] || {}).done);
       const capsule = nextCap ? '<section class="card soft"><div class="head"><div><p class="eyebrow">Capsule à voir</p><h3>' + esc(nextCap.titre) + '</h3></div><span class="pill gold">' + esc(nextCap.duree) + '</span></div><p class="hint">' + esc(nextCap.sous) + '</p><div class="actions"><button class="btn ghost" data-act="cap-open" data-id="' + nextCap.id + '">Regarder</button></div></section>' : "";
-      return h + (P.empty ? packCta() : "") + '<div class="cols"><div class="col">' + mission + ritual + install + dates + week + '</div><div class="col">' + mur + mait + capsule + "</div></div>";
+      return h + orator1 + '<div class="cols"><div class="col">' + mission + ritual + install + dates + week + '</div><div class="col">' + (P.empty ? packCta() : "") + mur + mait + capsule + "</div></div>";
     },
     apprendre() {
       let body = "";
@@ -870,7 +897,7 @@
     },
     examens() {
       const card = m => { const e = EXAMS[m], last = S.exams.find(x => x.mod === m), d = S.settings.dates[m] || "", D = Core.DEF.EXAMENS[m]; return '<section class="card"><div class="head"><div><p class="eyebrow">Examen blanc' + (D.confirme ? "" : " · format non confirmé") + "</p><h2>" + e.titre + "</h2></div>" + (last ? '<p class="big">' + fr(last.score) + "<small>/ 20, le " + fmtDate(last.t) + "</small></p>" : "") + '</div><ul class="pts">' + e.format().map(f => "<li>" + esc(f) + "</li>").join("") + "</ul>" + (e.note ? '<p class="hint">' + esc(e.note) + "</p>" : "") +
-        (m === 1 ? '<div class="field">Nombre de questions' + seg("qcmn", S.settings.qcmN, [[20, "20"], [30, "30"], [40, "40"], [999, "Toutes"]]) + "</div>" : "") +
+        (m === 1 && examPack().length ? '<div class="field">Nombre de questions' + seg("qcmn", S.settings.qcmN, [[20, "20"], [30, "30"], [40, "40"], [999, "Toutes"]]) + "</div>" : "") +
         (m === 3 ? '<div class="field">Introduction et conclusion' + seg("o3cadre", S.settings.o3cadre ? 1 : 0, [[1, "Demandées"], [0, "Non demandées"]]) + "</div>" : "") +
         '<label class="field" for="date' + m + '">Date de l\'épreuve<input type="date" id="date' + m + '" data-date="' + m + '" value="' + esc(d) + '"></label><button class="btn primary" data-act="exam" data-m="' + m + '"' + (e.ok() ? "" : " disabled") + ">Commencer</button>" + (e.ok() ? "" : '<p class="hint">Le pack ne contient pas encore le nécessaire pour cette épreuve.</p>') + "</section>"; };
       return '<header class="top"><p class="eyebrow">Se mesurer</p><h1>Examens</h1></header><p class="hint">Indique tes dates : les révisions se resserrent avant chaque épreuve.</p><div class="cols"><div class="col">' + card(1) + card(3) + '</div><div class="col">' + card(4) + card(2) + "</div></div>";
@@ -920,6 +947,7 @@
   function toast(msg) { const el = $("#toast"); el.textContent = msg; el.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("on"), 3000); }
 
   document.addEventListener("click", ev => {
+    if (finishExpiredQcm(Date.now())) return;
     const nav = ev.target.closest("#nav a");
     if (nav) { ev.preventDefault(); UI.tab = nav.dataset.tab; UI.cap = null; capAuto(false); try { location.hash = nav.dataset.tab; } catch (e) { /* sans hash */ } render(); window.scrollTo(0, 0); return; }
     if (ev.target.id === "sheet") return closeSheet();
@@ -940,7 +968,7 @@
   /* ================= Hors ligne ================= */
   const SW = { state: "" };
   if ("serviceWorker" in navigator && location.protocol !== "file:") {
-    navigator.serviceWorker.register("sw.js").then(reg => {
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(reg => {
       SW.state = "hors ligne prête";
       reg.addEventListener("updatefound", () => { const w = reg.installing; if (!w) return; w.addEventListener("statechange", () => { if (w.state === "installed" && navigator.serviceWorker.controller) toast("Nouvelle version prête : ferme et rouvre l'appli."); }); });
     }).catch(() => { SW.state = "hors ligne indisponible"; });
